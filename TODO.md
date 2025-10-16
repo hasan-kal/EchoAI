@@ -17,3 +17,4 @@
 - [x] Run npm install in backend and frontend
 - [x] Test login/signup flow (servers running, but manual testing needed due to browser tool disabled)
 - [ ] Verify protected route works with token
+
