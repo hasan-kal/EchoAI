@@ -14,7 +14,7 @@ const DashboardPage = () => {
       </aside>
       <main className="main-content">
         <h2>Dashboard</h2>
-        <p>Main content area placeholder.</p>
+        <p>Welcome to EchoAI!</p>
       </main>
     </div>
   );
