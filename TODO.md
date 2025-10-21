@@ -1,6 +1,16 @@
-# TODO for Journaling System with AI Reflections
+# TODO: Implement Mood and Insight Analysis for Journal Entries
 
-- [x] Create backend/models/Journal.js: Mongoose model with userId (ref User), content, aiResponse, date (default now)
-- [x] Create backend/routes/journalRoutes.js: POST /journal/create (protected, generate AI response using HuggingFace, save entry) and GET /journal/all (protected, return user's entries)
-- [x] Edit backend/server.js: Import and use journalRoutes under /api
-- [x] Edit frontend/src/pages/DashboardPage.js: Add textarea, submit button (POST to /api/journal/create), display entries (GET /api/journal/all)
+## Backend Updates
+- [x] Update Journal model (backend/models/Journal.js): Add "mood" field (String).
+- [x] Modify /journal/create route (backend/routes/journalRoutes.js): Analyze text using AI API to assign mood category (happy, sad, stressed, calm, neutral).
+- [x] Add new GET /journal/insights route (backend/routes/journalRoutes.js): Analyze all user entries, return mood frequency count and AI-generated summary.
+
+## Frontend Updates
+- [x] Install recharts library (frontend/package.json).
+- [x] Create new InsightsPage.js (frontend/src/pages/InsightsPage.js): Fetch /insights, display pie chart for mood distribution, show AI summary.
+- [x] Update App.js (frontend/src/App.js): Add route for InsightsPage.
+- [x] Update DashboardPage.js (frontend/src/pages/DashboardPage.js): Add link or section to navigate to insights.
+
+## Followup Steps
+- [x] Install dependencies (run npm install in frontend).
+- [ ] Test mood analysis and insights display.
