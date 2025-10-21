@@ -64,9 +64,8 @@ const DashboardPage = () => {
       <aside className="sidebar">
         <h3>Sidebar</h3>
         <ul>
-          <li>Menu Item 1</li>
-          <li>Menu Item 2</li>
-          <li>Menu Item 3</li>
+          <li><a href="/dashboard">Dashboard</a></li>
+          <li><a href="/insights">Mood Insights</a></li>
         </ul>
       </aside>
       <main className="main-content">
