@@ -4,69 +4,109 @@ import authMiddleware from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Function to generate AI response using HuggingFace API
+// In-memory cache for AI responses (simple implementation with TTL)
+const aiCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// Function to generate AI response using HuggingFace API with caching
 const generateAIResponse = async (userContent) => {
-  const API_KEY = process.env.HUGGINGFACE_API_KEY;
-  if (!API_KEY) {
-    throw new Error('HuggingFace API key not found');
+  const cacheKey = `response_${userContent}`;
+  const cached = aiCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('Using cached AI response');
+    return cached.data;
   }
 
-  const response = await fetch('https://api-inference.huggingface.co/models/gpt2', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inputs: `Reflect on this journal entry: ${userContent}. Provide a short, thoughtful response.`,
-      parameters: {
-        max_length: 100,
-        temperature: 0.7,
-      },
-    }),
-  });
+  const API_KEY = process.env.HUGGINGFACE_API_KEY;
+  if (!API_KEY) {
+    console.log('No HuggingFace API key, using default response');
+    return 'AI reflection not available (API key missing)';
+  }
 
-  if (!response.ok) {
+  try {
+    const response = await fetch('https://api-inference.huggingface.co/models/gpt2', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs: `Reflect on this journal entry: ${userContent}. Provide a short, thoughtful response.`,
+        parameters: {
+          max_length: 100,
+          temperature: 0.7,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`AI response API failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const result = data[0]?.generated_text || 'AI reflection not available.';
+
+    // Cache the result
+    aiCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+    return result;
+  } catch (error) {
+    console.error('Error generating AI response:', error);
     throw new Error('Failed to generate AI response');
   }
-
-  const data = await response.json();
-  return data[0]?.generated_text || 'AI reflection not available.';
 };
 
-// Function to analyze mood using HuggingFace API
+// Function to analyze mood using HuggingFace API with caching
 const analyzeMood = async (userContent) => {
+  const cacheKey = `mood_${userContent}`;
+  const cached = aiCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('Using cached mood analysis');
+    return cached.data;
+  }
+
   const API_KEY = process.env.HUGGINGFACE_API_KEY;
   if (!API_KEY) {
-    throw new Error('HuggingFace API key not found');
-  }
-
-  const response = await fetch('https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inputs: userContent,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to analyze mood');
-  }
-
-  const data = await response.json();
-  const sentiment = data[0]?.label; // POSITIVE or NEGATIVE
-
-  // Map sentiment to mood categories
-  if (sentiment === 'POSITIVE') {
-    return 'happy';
-  } else if (sentiment === 'NEGATIVE') {
-    // For more granularity, we could use another model, but for now, classify as sad or stressed
-    return 'sad'; // Default to sad for negative
-  } else {
+    console.log('No HuggingFace API key, using default mood');
     return 'neutral';
+  }
+
+  try {
+    const response = await fetch('https://api-inference.huggingface.co/models/distilbert-base-uncased-finetuned-sst-2-english', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs: userContent,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`Mood analysis API failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const sentiment = data[0]?.label; // POSITIVE or NEGATIVE
+
+    // Map sentiment to mood categories
+    let mood;
+    if (sentiment === 'POSITIVE') {
+      mood = 'happy';
+    } else if (sentiment === 'NEGATIVE') {
+      mood = 'sad'; // Default to sad for negative
+    } else {
+      mood = 'neutral';
+    }
+
+    // Cache the result
+    aiCache.set(cacheKey, { data: mood, timestamp: Date.now() });
+
+    return mood;
+  } catch (error) {
+    console.error('Error analyzing mood:', error);
+    throw new Error('Failed to analyze mood');
   }
 };
 
@@ -78,11 +118,19 @@ router.post('/create', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'Content is required' });
     }
 
-    const aiResponse = await generateAIResponse(content);
-    const mood = await analyzeMood(content);
+    let aiResponse = 'AI reflection not available (API key missing)';
+    let mood = 'neutral';
+
+    try {
+      aiResponse = await generateAIResponse(content);
+      mood = await analyzeMood(content);
+    } catch (aiError) {
+      console.error('AI API error:', aiError.message);
+      // Continue with default values if AI fails
+    }
 
     const journalEntry = new Journal({
-      userId: req.user.id,
+      userId: req.user.userId || req.user.id,
       content,
       aiResponse,
       mood,
@@ -91,7 +139,7 @@ router.post('/create', authMiddleware, async (req, res) => {
     await journalEntry.save();
     res.status(201).json({ message: 'Journal entry created', entry: journalEntry });
   } catch (error) {
-    console.error(error);
+    console.error('Database error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
@@ -107,36 +155,54 @@ router.get('/all', authMiddleware, async (req, res) => {
   }
 });
 
-// Function to generate AI insights summary
+// Function to generate AI insights summary with caching
 const generateInsightsSummary = async (moodCounts) => {
+  const cacheKey = `insights_${JSON.stringify(moodCounts)}`;
+  const cached = aiCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    console.log('Using cached insights summary');
+    return cached.data;
+  }
+
   const API_KEY = process.env.HUGGINGFACE_API_KEY;
   if (!API_KEY) {
-    throw new Error('HuggingFace API key not found');
+    console.log('No HuggingFace API key, using default insights summary');
+    return 'Insights summary not available (API key missing)';
   }
 
-  const moodSummary = Object.entries(moodCounts).map(([mood, count]) => `${mood}: ${count}`).join(', ');
+  try {
+    const moodSummary = Object.entries(moodCounts).map(([mood, count]) => `${mood}: ${count}`).join(', ');
 
-  const response = await fetch('https://api-inference.huggingface.co/models/gpt2', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      inputs: `Based on mood counts: ${moodSummary}. Provide a short summary of the user's emotional state.`,
-      parameters: {
-        max_length: 50,
-        temperature: 0.7,
+    const response = await fetch('https://api-inference.huggingface.co/models/gpt2', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${API_KEY}`,
+        'Content-Type': 'application/json',
       },
-    }),
-  });
+      body: JSON.stringify({
+        inputs: `Based on mood counts: ${moodSummary}. Provide a short summary of the user's emotional state.`,
+        parameters: {
+          max_length: 50,
+          temperature: 0.7,
+        },
+      }),
+    });
 
-  if (!response.ok) {
+    if (!response.ok) {
+      throw new Error(`Insights summary API failed with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const result = data[0]?.generated_text || 'Insights summary not available.';
+
+    // Cache the result
+    aiCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+    return result;
+  } catch (error) {
+    console.error('Error generating insights summary:', error);
     throw new Error('Failed to generate insights summary');
   }
-
-  const data = await response.json();
-  return data[0]?.generated_text || 'Insights summary not available.';
 };
 
 // GET /journal/insights
@@ -158,14 +224,20 @@ router.get('/insights', authMiddleware, async (req, res) => {
       }
     });
 
-    const summary = await generateInsightsSummary(moodCounts);
+    let summary = 'Insights summary not available (API key missing)';
+    try {
+      summary = await generateInsightsSummary(moodCounts);
+    } catch (aiError) {
+      console.error('AI API error for insights:', aiError.message);
+      // Continue with default summary if AI fails
+    }
 
     res.json({
       moodCounts,
       summary,
     });
   } catch (error) {
-    console.error(error);
+    console.error('Database error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
