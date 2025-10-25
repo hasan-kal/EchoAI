@@ -1,16 +1,16 @@
-# TODO: Implement Mood and Insight Analysis for Journal Entries
+# EchoAI Day 7 Improvements - TODO
 
-## Backend Updates
-- [x] Update Journal model (backend/models/Journal.js): Add "mood" field (String).
-- [x] Modify /journal/create route (backend/routes/journalRoutes.js): Analyze text using AI API to assign mood category (happy, sad, stressed, calm, neutral).
-- [x] Add new GET /journal/insights route (backend/routes/journalRoutes.js): Analyze all user entries, return mood frequency count and AI-generated summary.
+## Frontend (React)
+- [x] Update App.js: Add route protection component to check JWT in localStorage and redirect to /login if absent.
+- [x] Update DashboardPage.js: Restructure layout into sections (journal input, entries, insights). Add loading spinners during API calls. Implement error/success message states for submissions. Add logout button that clears localStorage and redirects to /.
+- [x] Update LoginPage.js: Replace alert() with state-based error/success messages displayed in the UI.
+- [x] Update SignupPage.js: Replace alert() with state-based error/success messages displayed in the UI.
+- [x] Update AuthPages.css: Apply soft colors, better spacing, readable fonts for a modern feel.
+- [x] Update DashboardPage.css: Apply soft colors, better spacing, readable fonts for a modern feel.
 
-## Frontend Updates
-- [x] Install recharts library (frontend/package.json).
-- [x] Create new InsightsPage.js (frontend/src/pages/InsightsPage.js): Fetch /insights, display pie chart for mood distribution, show AI summary.
-- [x] Update App.js (frontend/src/App.js): Add route for InsightsPage.
-- [x] Update DashboardPage.js (frontend/src/pages/DashboardPage.js): Add link or section to navigate to insights.
+## Backend (Node.js)
+- [x] Update journalRoutes.js: Implement in-memory caching for AI responses (with short TTL to limit duplicates). Enhance try/catch for all AI API interactions to handle errors gracefully.
+- [x] Verify authMiddleware is on all protected routes (it is).
 
-## Followup Steps
-- [x] Install dependencies (run npm install in frontend).
-- [ ] Test mood analysis and insights display.
+## Output
+- [ ] Output all modified files separately with correct filenames.
