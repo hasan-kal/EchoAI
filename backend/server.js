@@ -22,6 +22,16 @@ connectDB();
 app.use('/api/auth', authRoutes);
 app.use('/api/journal', journalRoutes);
 
+// POST /api/reflect
+app.post('/api/reflect', (req, res) => {
+  const { entry } = req.body;
+  if (!entry) {
+    return res.status(400).json({ message: 'Journal entry is required' });
+  }
+  const response = "I understand how you feel. Let's explore that emotion further.";
+  res.json({ response });
+});
+
 // Basic route
 app.get('/', (req, res) => {
   res.json({ message: 'EchoAI Backend API' });
