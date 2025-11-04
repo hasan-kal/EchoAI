@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import axios from 'axios';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import journalRoutes from './routes/journalRoutes.js';
@@ -16,20 +17,37 @@ app.use(cors());
 app.use(express.json());
 
 // Connect to MongoDB
-connectDB();
+// connectDB(); // Commented out for testing reflect API without DB
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/journal', journalRoutes);
 
 // POST /api/reflect
-app.post('/api/reflect', (req, res) => {
+app.post('/api/reflect', async (req, res) => {
   const { entry } = req.body;
   if (!entry) {
     return res.status(400).json({ message: 'Journal entry is required' });
   }
-  const response = "I understand how you feel. Let's explore that emotion further.";
-  res.json({ response });
+  try {
+    const geminiResponse = await axios.post(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent',
+      {
+        contents: [{ parts: [{ text: entry }] }]
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.GEMINI_API_KEY}`
+        }
+      }
+    );
+    const aiMessage = geminiResponse.data.candidates[0].content.parts[0].text;
+    res.json({ response: aiMessage });
+  } catch (error) {
+    console.error('Error calling Gemini API:', error);
+    res.status(500).json({ message: 'Failed to get AI response' });
+  }
 });
 
 // Basic route
