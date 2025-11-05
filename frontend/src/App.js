@@ -1,17 +1,40 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import JournalEntry from './components/JournalEntry';
 import './App.css';
 
 function App() {
   const [messages, setMessages] = useState([]);
+  const messagesEndRef = useRef(null);
+
+  useEffect(() => {
+    // Fetch previous messages on app load
+    fetch('/api/messages')
+      .then(res => res.json())
+      .then(data => setMessages(data.messages))
+      .catch(err => console.error('Error fetching messages:', err));
+  }, []);
+
+  useEffect(() => {
+    // Auto-scroll to the latest message
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSubmit = async (entry) => {
     // Add user message
-    setMessages(prev => [...prev, { type: 'user', text: entry }]);
-    // Simulate AI response
-    setTimeout(() => {
-      setMessages(prev => [...prev, { type: 'ai', text: 'Thank you for sharing your thoughts!' }]);
-    }, 1000);
+    setMessages(prev => [...prev, { role: 'user', content: entry }]);
+
+    try {
+      const res = await fetch('/api/reflect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry })
+      });
+      const data = await res.json();
+      // Add AI response
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response }]);
+    } catch (error) {
+      console.error('Error calling reflect API:', error);
+    }
   };
 
   return (

@@ -1,6 +1,15 @@
-# TODO: Connect EchoAI Frontend to Backend API
+# TODO: Add Memory and Journal Storage Features to EchoAI
 
-- [x] Create/update backend/.env with GEMINI_API_KEY
-- [ ] Update backend/server.js to use axios for Gemini API call in /api/reflect
-- [ ] Update frontend/src/App.js to use fetch for real API call
-- [ ] Test full frontend-backend flow
+## Backend Changes
+- [x] Modify `/api/reflect` endpoint in `backend/server.js` to store user and AI messages in a memory array.
+- [x] Implement saving memory to `journal.json` using fs module.
+- [x] Add a new endpoint `/api/messages` to fetch previous messages.
+
+## Frontend Changes
+- [ ] Update `frontend/src/App.js` to fetch messages on app load.
+- [ ] Modify `handleSubmit` to call backend `/api/reflect` and update messages state with real responses.
+- [ ] Implement auto-scroll to the latest message in the messages display.
+
+## Testing
+- [ ] Test backend endpoints for storing and retrieving messages.
+- [ ] Test frontend for persistence and auto-scroll functionality.
